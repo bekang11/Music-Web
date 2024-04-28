@@ -17,9 +17,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { CreateMusicDto } from './dto/create-music.dto';
 import { GetUser } from 'src/user/get-user.decorator';
 import { GetMusicFilterDto } from './dto/get-music-filter.dto';
-import { UpdateMusicArtistsDto } from './dto/update-music-artist.dto';
+import { UpdateMusicArtistDto } from './dto/update-music-artist.dto';
 import { UpdateMusicTitleDto } from './dto/update-music-title.dto';
-import { MusicStatus } from './music-status.enum';
 @Controller('music')
 @UseGuards(AuthGuard())
 export class MusicController {
@@ -38,8 +37,11 @@ export class MusicController {
   }
 
   @Get('/:id')
-  getMusiccById(@Param('id') id: string): Promise<Music> {
-    return this.musicService.getMusicById(id);
+  getMusiccById(
+    @Param('id') id: string,
+    @GetUser() user: User,
+  ): Promise<Music> {
+    return this.musicService.getMusicById(id, user);
   }
 
   @Delete('/:id')
@@ -67,25 +69,15 @@ export class MusicController {
     @GetUser() user: User,
   ): Promise<Music> {
     const { title } = updateMusicTitleDto;
-    return this.musicService.updateMusicTitle(
-      id,
-      title,
-      user,
-      MusicStatus.OPEN,
-    );
+    return this.musicService.updateMusicTitle(id, title, user);
   }
   @Patch('/:id/artist')
   updateMusicArtist(
     @Param('id') id: string,
-    @Body() updateMusicArtistDto: UpdateMusicArtistsDto,
+    @Body() updateMusicArtistDto: UpdateMusicArtistDto,
     @GetUser() user: User,
   ): Promise<Music> {
     const { artist } = updateMusicArtistDto;
-    return this.musicService.updateMusicArtist(
-      id,
-      artist,
-      user,
-      MusicStatus.OPEN,
-    );
+    return this.musicService.updateMusicArtist(id, artist, user);
   }
 }

@@ -5,7 +5,6 @@ import { Music } from 'src/entities/music.entity';
 import { CreateMusicDto } from './dto/create-music.dto';
 import { GetMusicFilterDto } from './dto/get-music-filter.dto';
 import { User } from 'src/entities/user.entity';
-import { MusicStatus } from './music-status.enum';
 
 @Injectable()
 export class MusicService {
@@ -13,8 +12,8 @@ export class MusicService {
     @InjectRepository(MusicRepository)
     private musicRepository: MusicRepository,
   ) {}
-  async getMusicById(id: string): Promise<Music> {
-    const found = await this.musicRepository.findOneBy({ id });
+  async getMusicById(id: string, user: User): Promise<Music> {
+    const found = await this.musicRepository.findOneBy({ id, user });
 
     if (!found) {
       throw new NotFoundException(`Music with ID "${id}" not found`);
@@ -36,28 +35,24 @@ export class MusicService {
   }
   async updateMusicTitle(
     id: string,
-    status: MusicStatus,
     title: string,
     user: User,
   ): Promise<Music> {
     const music = await this.getMusicById(id, user);
 
     music.title = title;
-    music.status = status;
     await this.musicRepository.save(music);
 
     return music;
   }
   async updateMusicArtist(
     id: string,
-    status: MusicStatus,
     artist: string,
     user: User,
   ): Promise<Music> {
     const music = await this.getMusicById(id, user);
 
     music.artist = artist;
-    music.status = status;
     await this.musicRepository.save(music);
 
     return music;
