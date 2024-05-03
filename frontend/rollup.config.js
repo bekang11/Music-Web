@@ -15,7 +15,9 @@ export default {
 	  name: 'app',
 	  file: 'public/build/bundle.js',
 	  globals: {
-		axios: 'axios'
+		axios: 'axios',
+		'$lib/App.svelte': 'App',
+		'@sveltejs/kit': 'kit'
 	  }
 	},
 	plugins: [

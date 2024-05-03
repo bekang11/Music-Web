@@ -37,10 +37,7 @@ export class MusicController {
   }
 
   @Get('/:id')
-  getMusiccById(
-    @Param('id') id: string,
-    @GetUser() user: User,
-  ): Promise<Music> {
+  getMusicById(@Param('id') id: string, @GetUser() user: User): Promise<Music> {
     return this.musicService.getMusicById(id, user);
   }
 

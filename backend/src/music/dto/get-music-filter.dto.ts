@@ -6,14 +6,6 @@ export class GetMusicFilterDto {
   search?: string;
 
   @IsOptional()
-  @IsString()
-  title?: string;
-
-  @IsOptional()
-  @IsString()
-  artist?: string;
-
-  @IsOptional()
   @IsEnum(MusicStatus)
   status?: MusicStatus;
 }
