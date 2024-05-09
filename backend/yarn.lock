@@ -719,7 +719,7 @@
     webpack "5.90.1"
     webpack-node-externals "3.0.0"
 
-"@nestjs/common@^10.0.0", "@nestjs/common@^8.0.0 || ^9.0.0 || ^10.0.0":
+"@nestjs/common@^10.0.0", "@nestjs/common@^10.3.8", "@nestjs/common@^8.0.0 || ^9.0.0 || ^10.0.0":
   version "10.3.8"
   resolved "https://registry.npmjs.org/@nestjs/common/-/common-10.3.8.tgz"
   integrity sha512-P+vPEIvqx2e+fonsYVlFXKvoChyJ8Tq+lfpqdVFqblovHbFr3kZ/nYX0cPs+XuW6bnRT8tz0SSR9XBGU43kJhw==
