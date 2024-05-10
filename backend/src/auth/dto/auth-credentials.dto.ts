@@ -1,5 +1,7 @@
 import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
+const myRegax = /((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/;
+
 export class AuthCredentialsDto {
   @IsString()
   @MinLength(4)
@@ -9,9 +11,9 @@ export class AuthCredentialsDto {
   @IsString()
   @MinLength(8)
   @MaxLength(20)
-  @Matches(/^(?=.*[0-8])(?=.*[a-z])(?=.*[A-Z])(?=.*_)(?!.*\W)(?!.* ).{8,16}$/, {
+  @Matches(myRegax, {
     message:
-      'Password must be at least 8 characters long and contain at least one digit, one special character, and one uppercase letter',
+      'Password too weak. It must contain at least one digit, one lowercase letter, one uppercase letter, one special character, and be between 8 to 20 characters long.',
   })
   password: string;
 }

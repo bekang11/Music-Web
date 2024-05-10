@@ -1,6 +1,9 @@
 <script>
+  import { writable } from 'svelte/store';
+  
   let username = '';
   let password = '';
+  let accessToken = writable('');
 
   async function SignIn() {
     try {
@@ -16,9 +19,10 @@
       if (!response.ok) {
         throw new Error('Sign-in failed');
       }
-
+      const { accessToken: token } = await response.json();
+      accessToken.set(token);
       alert('Sign-in successful!');
-      // Redirect or navigate to another page
+      window.location.href = '/music';
     } catch (error) {
       console.error('Error signing in:', error.message);
       alert('Sign-in failed. Please try again.');
@@ -26,17 +30,76 @@
   }
 </script>
 
-<div>
-  <h1>Sign In</h1>
+<div class="signin-container">
+  <div class="container">Sign in</div>
   <form on:submit|preventDefault={SignIn}>
-    <div>
+    <div class="form-group">
       <label for="username">Username:</label>
-      <input type="username" id="username" bind:value={username} required>
+      <input type="text" id="username" required bind:value={username}>
     </div>
-    <div>
+    <div class="form-group">
       <label for="password">Password:</label>
-      <input type="password" id="password" bind:value={password} required>
+      <input type="password" id="password" required bind:value={password}>
     </div>
     <button type="submit">Sign In</button>
   </form>
+  <div class="signup-link">
+    <button on:click={() => window.location.href = '/signup'}>Don't have an account?</button>
+  </div>
 </div>
+
+<style>
+  .signin-container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 50px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+  }
+
+  .container {
+  font-size: 30px;
+  text-transform: uppercase;
+  text-align: center;
+
+}
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  label {
+    font-weight: bold;
+  }
+
+  input[type="text"],
+  input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+
+  button[type="submit"] {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  button[type="submit"]:hover {
+    background-color: #0056b3;
+  }
+
+  .signup-link {
+    text-align: center;
+    margin-top: 15px;
+    text-decoration: underline;
+    color: #007bff;
+    text-decoration: none;
+  }
+</style>
