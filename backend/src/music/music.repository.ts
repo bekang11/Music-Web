@@ -46,7 +46,7 @@ export class MusicRepository extends Repository<Music> {
 
     const music = this.create({
       title,
-      status: MusicStatus.OPEN,
+      status: MusicStatus.PLAYING,
       artist,
       user,
     });

@@ -1,4 +1,5 @@
 export enum MusicStatus {
-  OPEN = 'Mở',
-  CLOSE = 'Đóng',
+  PLAYING = 'PLAYING',
+  STOP = 'STOP',
+  PAUSED = 'PAUSED',
 }

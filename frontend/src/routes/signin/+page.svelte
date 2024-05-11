@@ -1,11 +1,16 @@
-<script>
-  import { writable } from 'svelte/store';
-  
+<script lang="ts" src="https://www.google.com/recaptcha/api.js?render=6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI">
+
+  import { accessToken } from '$lib/components/accessToken'
   let username = '';
   let password = '';
-  let accessToken = writable('');
+  let recaptchaWidgetId: number | null = null;
+
 
   async function SignIn() {
+    if (!recaptchaWidgetId) {
+      alert('Please complete the reCAPTCHA verification.');
+      return;
+    }
     try {
       const response = await fetch('http://localhost:3000/auth/signin', {
         method: 'POST',
@@ -16,20 +21,32 @@
         body: JSON.stringify({ username, password })
       });
 
-      if (!response.ok) {
+      if (response.ok) {
+        const data = await response.json();
+        const token = data.accessToken;
+        accessToken.set(token);
+        window.location.href = '/music';
+        alert('Sign-in successful!');
+      } else {
         throw new Error('Sign-in failed');
       }
-      const { accessToken: token } = await response.json();
-      accessToken.set(token);
-      alert('Sign-in successful!');
-      window.location.href = '/music';
     } catch (error) {
       console.error('Error signing in:', error.message);
       alert('Sign-in failed. Please try again.');
     }
   }
+  function recaptchaLoaded() {
+    if (typeof grecaptcha !== 'undefined') {
+      recaptchaWidgetId = grecaptcha.render('recaptcha', {
+        sitekey: '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI',
+        callback: () => {
+          const loginButton = document.getElementById('loginButton');
+          loginButton?.removeAttribute('disabled');
+        }
+      });
+    }
+  }
 </script>
-
 <div class="signin-container">
   <div class="container">Sign in</div>
   <form on:submit|preventDefault={SignIn}>
@@ -41,14 +58,19 @@
       <label for="password">Password:</label>
       <input type="password" id="password" required bind:value={password}>
     </div>
-    <button type="submit">Sign In</button>
+    <div class="form-group">
+      <div id="recaptcha"></div>
+    </div>
+    <button id="loginButton" type="submit" >Sign In</button>
   </form>
   <div class="signup-link">
     <button on:click={() => window.location.href = '/signup'}>Don't have an account?</button>
   </div>
 </div>
 
+
 <style>
+
   .signin-container {
     max-width: 400px;
     margin: 0 auto;
@@ -62,8 +84,7 @@
   font-size: 30px;
   text-transform: uppercase;
   text-align: center;
-
-}
+  }
 
   .form-group {
     margin-bottom: 15px;
