@@ -13,7 +13,7 @@ export class MusicService {
     private musicRepository: MusicRepository,
   ) {}
   async getMusicById(id: string, user: User): Promise<Music> {
-    const found = await this.musicRepository.findOneBy({ id, user });
+    const found = await this.musicRepository.findOne({ where: { id, user } });
 
     if (!found) {
       throw new NotFoundException(`Music with ID "${id}" not found`);

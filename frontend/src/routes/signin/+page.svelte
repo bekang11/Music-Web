@@ -1,16 +1,33 @@
-<script lang="ts" src="https://www.google.com/recaptcha/api.js?render=6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI">
+<!-- Svelte script -->
+<script lang="ts">
 
+  import { onMount } from 'svelte';
+  import { writable } from 'svelte/store';
   import { accessToken } from '$lib/components/accessToken'
+
+
   let username = '';
   let password = '';
-  let recaptchaWidgetId: number | null = null;
+  let userInput = '';
+  let captchaCode = writable('');
 
-
-  async function SignIn() {
-    if (!recaptchaWidgetId) {
-      alert('Please complete the reCAPTCHA verification.');
-      return;
+  const generateCaptcha = () => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
     }
+    return result;
+  };
+
+  onMount(() => {
+    captchaCode.set(generateCaptcha());
+  });
+  const handleSubmit = async () => {
+    if (userInput !== $captchaCode) {
+      alert('CAPTCHA validation failed. Please try again.');
+      return;
+    } 
     try {
       const response = await fetch('http://localhost:3000/auth/signin', {
         method: 'POST',
@@ -31,36 +48,38 @@
         throw new Error('Sign-in failed');
       }
     } catch (error) {
-      console.error('Error signing in:', error.message);
+      const errorMessage = (error as Error).message;
+      console.error('Error signing in:', errorMessage);
       alert('Sign-in failed. Please try again.');
     }
   }
-  function recaptchaLoaded() {
-    if (typeof grecaptcha !== 'undefined') {
-      recaptchaWidgetId = grecaptcha.render('recaptcha', {
-        sitekey: '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI',
-        callback: () => {
-          const loginButton = document.getElementById('loginButton');
-          loginButton?.removeAttribute('disabled');
-        }
-      });
-    }
-  }
+  const refreshCaptcha = () => {
+    captchaCode.set(generateCaptcha());
+    userInput = '';
+  };
 </script>
+
+<!-- HTML markup goes here -->
+
 <div class="signin-container">
   <div class="container">Sign in</div>
-  <form on:submit|preventDefault={SignIn}>
+  <form on:submit|preventDefault={handleSubmit}>
     <div class="form-group">
       <label for="username">Username:</label>
-      <input type="text" id="username" required bind:value={username}>
+      <input type="text" id="username" required bind:value={username} autocomplete="username">
     </div>
     <div class="form-group">
       <label for="password">Password:</label>
-      <input type="password" id="password" required bind:value={password}>
+      <input type="password" id="password" required bind:value={password} autocomplete="current-password">
     </div>
     <div class="form-group">
-      <div id="recaptcha"></div>
-    </div>
+      <label for="captcha">CAPTCHA:</label>
+      <input type="text" id="captcha" bind:value={userInput} required>
+      <span>{$captchaCode}</span>
+      <button type="button" on:click={refreshCaptcha}>Refresh</button>
+    {#if userInput !== $captchaCode}
+      <p>CAPTCHA validation failed. Please try again.</p>
+    {/if}
     <button id="loginButton" type="submit" >Sign In</button>
   </form>
   <div class="signup-link">
@@ -69,6 +88,7 @@
 </div>
 
 
+<!-- CSS styles go here -->
 <style>
 
   .signin-container {

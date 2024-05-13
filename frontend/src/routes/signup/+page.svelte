@@ -43,7 +43,8 @@
       alert('Sign-up successful!');
       window.location.href = '/signin';
     } catch (error) {
-      console.error('Error signing up:', error.message);
+      const errorMessage = (error as Error).message;
+      console.error('Error signing up:', errorMessage);
       alert('Sign-up failed. Please try again.');
     }
   };

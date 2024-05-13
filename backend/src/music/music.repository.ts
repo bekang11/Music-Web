@@ -1,5 +1,9 @@
 import { Music } from 'src/entities/music.entity';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { Repository, DataSource } from 'typeorm';
 import { CreateMusicDto } from './dto/create-music.dto';
 import { GetMusicFilterDto } from './dto/get-music-filter.dto';
@@ -11,6 +15,8 @@ export class MusicRepository extends Repository<Music> {
   constructor(private dataSource: DataSource) {
     super(Music, dataSource.createEntityManager());
   }
+  private logger = new Logger('MusicRepository', { timestamp: true });
+
   async getMusic(filterDto: GetMusicFilterDto, user: User): Promise<Music[]> {
     const { status, search } = filterDto;
 
@@ -27,16 +33,18 @@ export class MusicRepository extends Repository<Music> {
         { search: `%${search}%` },
       );
     }
-
-    const musics = await query.getMany();
-    return musics;
-  }
-  async getMuiscById(id: string): Promise<Music> {
-    const music = await this.findOne({ where: { id } });
-    if (!music) {
-      throw new NotFoundException('Music not found');
+    try {
+      const musics = await query.getMany();
+      return musics;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get musics for user "${
+          user.username
+        }". Filters: ${JSON.stringify(filterDto)}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException();
     }
-    return music;
   }
   async createMusic(
     createMusicDto: CreateMusicDto,

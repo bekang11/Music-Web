@@ -2,28 +2,29 @@
   import { onMount } from 'svelte';
   import { accessToken } from '$lib/components/accessToken';
 
+
   interface MusicTrack {
     title: string;
     artist: string;
-    status: any; 
+    status: string;
   }
 
   type MusicData = MusicTrack[];
   let musicData: MusicData | null = null;
-  let isLoading = false;
-  
+
   onMount(() => {
     const unsubscribe = accessToken.subscribe(token => {
-      if (token) {
-        fetchMusicData(token);
+      console.log('AccesToken:', token)
+      if (token !== null) {
+        fetchMusicData(token as unknown as string);
       }
     });
     return unsubscribe;
   });
 
   async function fetchMusicData(token: string) {
-    isLoading = true;
     try {
+      console.log('data')
       const response = await fetch('http://localhost:3000/music', {
         method: 'GET',
         mode: 'cors',
@@ -33,48 +34,56 @@
       });
 
       if (response.ok) {
+        console.log('datasuccessf')
         musicData = await response.json() as MusicData;
       } else {
         throw new Error('Failed to fetch music data');
       }
     } catch (error) {
-      console.error('Error fetching music data:', error.message);
-    } finally {
-      isLoading = false;
+      const errorMessage = (error as Error).message;
+      console.error('Error fetching music data:', errorMessage);
     }
   }
+  
 </script>
 
-{#if isLoading}
-<p>Loading music data...</p>
-{:else if musicData}
-<ul>
-  {#each musicData as track}
-    <li>
-      <div class="title">{track.title}</div>
-      <div class="artist">by {track.artist}</div>
-      <div class="status">Status: {track.status}</div>
-    </li>
-  {/each}
-</ul>
+
+
+{#if musicData === null}
+  <p>Loading music data...</p>
 {:else}
-<p>No music data available</p>
+  <ul>
+    {#each musicData as track}
+      <li>
+        <div class="box">
+          <div class="title">{track.title}</div>
+        </div>
+        <div class="box">
+          <div class="artist">by {track.artist}</div>
+        </div>
+        <div class="box">
+          <div class="status">Status: {track.status}</div>
+        </div>
+      </li>
+    {/each}
+  </ul>
 {/if}
 
 <style>
-  ul {
-    list-style: none;
-    padding: 0;
+  li {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
   }
 
-  li {
-    margin-bottom: 10px;
+  .box {
+    flex: 1;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
   }
 
-  .title {
+  .title, .artist, .status {
     font-weight: bold;
   }
 
