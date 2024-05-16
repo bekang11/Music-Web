@@ -1,9 +1,8 @@
-<!-- Svelte script -->
 <script lang="ts">
 
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
-  import { accessToken } from '$lib/components/accessToken'
+  import { setAccessToken } from '$lib/stores/accessToken';
 
 
   let username = '';
@@ -41,7 +40,8 @@
       if (response.ok) {
         const data = await response.json();
         const token = data.accessToken;
-        accessToken.set(token);
+        console.log('Received token:' , token);
+        localStorage.setItem('accessToken', token);
         window.location.href = '/music';
         alert('Sign-in successful!');
       } else {
@@ -59,7 +59,6 @@
   };
 </script>
 
-<!-- HTML markup goes here -->
 
 <div class="signin-container">
   <div class="container">Sign in</div>
@@ -87,8 +86,6 @@
   </div>
 </div>
 
-
-<!-- CSS styles go here -->
 <style>
 
   .signin-container {

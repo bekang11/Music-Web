@@ -31,4 +31,17 @@ export class AuthService {
       throw new UnauthorizedException('Kiem Tra Lai Tai Khoan');
     }
   }
+  async validateUser(payload: any): Promise<any> {
+    const { username } = payload;
+    try {
+      const user = await this.usersRepository.findOneBy({ username });
+      if (user) {
+        return user;
+      } else {
+        throw new UnauthorizedException('User not found');
+      }
+    } catch (error) {
+      throw new UnauthorizedException('Error validating User');
+    }
+  }
 }

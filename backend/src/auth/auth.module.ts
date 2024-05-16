@@ -15,7 +15,7 @@ import { CaptchaService } from './capcha/captchaservice';
     JwtModule.register({
       secret: 'topSecret51',
       signOptions: {
-        expiresIn: 3600,
+        expiresIn: '10h',
       },
     }),
     TypeOrmModule.forFeature([User]),
