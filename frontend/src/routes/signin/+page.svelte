@@ -28,7 +28,7 @@
       return;
     } 
     try {
-      const response = await fetch('http://localhost:3000/auth/signin', {
+      const response = await fetch(`http://localhost:3000/auth/signin`, {
         method: 'POST',
         mode: 'cors',
         headers: {
@@ -65,50 +65,55 @@
   <form on:submit|preventDefault={handleSubmit}>
     <div class="form-group">
       <label for="username">Username:</label>
-      <input type="text" id="username" required bind:value={username} autocomplete="username">
+      <input type="text" id="username" required bind:value={username} autocomplete="username" placeholder="Enter your username">
     </div>
     <div class="form-group">
       <label for="password">Password:</label>
-      <input type="password" id="password" required bind:value={password} autocomplete="current-password">
+      <input type="password" id="password" required bind:value={password} autocomplete="current-password" placeholder="Enter your password">
     </div>
     <div class="form-group">
       <label for="captcha">CAPTCHA:</label>
-      <input type="text" id="captcha" bind:value={userInput} required>
-      <span>{$captchaCode}</span>
-      <button type="button" on:click={refreshCaptcha}>Refresh</button>
-    {#if userInput !== $captchaCode}
-      <p>CAPTCHA validation failed. Please try again.</p>
-    {/if}
-    <button id="loginButton" type="submit" >Sign In</button>
+      <div class="captcha-input">
+        <input type="text" id="captcha" bind:value={userInput} required placeholder="Enter the CAPTCHA code">
+        <span class="captcha-code">{$captchaCode}</span>
+        <button type="button" on:click={refreshCaptcha}>Refresh</button>
+      </div>
+      {#if userInput !== $captchaCode}
+        <p class="error-message">CAPTCHA validation failed. Please try again.</p>
+      {/if}
+    </div>
+    <button id="loginButton" type="submit">Sign In</button>
   </form>
   <div class="signup-link">
-    <button on:click={() => window.location.href = '/signup'}>Don't have an account?</button>
+    <button on:click={() => window.location.href = '/signup'}>Don't have an account? Sign Up</button>
   </div>
 </div>
 
 <style>
-
   .signin-container {
     max-width: 400px;
     margin: 0 auto;
-    padding: 50px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #f9f9f9;
+    padding: 30px;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
   .container {
-  font-size: 30px;
-  text-transform: uppercase;
-  text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
   }
 
   .form-group {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
   }
 
   label {
-    font-weight: bold;
+    display: block;
+    font-size: 16px;
+    margin-bottom: 5px;
   }
 
   input[type="text"],
@@ -117,16 +122,32 @@
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
+    font-size: 16px;
+  }
+
+  .captcha-input {
+    display: flex;
+    align-items: center;
+  }
+
+  .captcha-code {
+    margin-left: 10px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
   }
 
   button[type="submit"] {
     width: 100%;
-    padding: 10px;
+    padding: 12px;
     border: none;
     border-radius: 5px;
     background-color: #007bff;
     color: #fff;
+    font-size: 16px;
     cursor: pointer;
+    transition: background-color 0.3s;
   }
 
   button[type="submit"]:hover {
@@ -135,9 +156,27 @@
 
   .signup-link {
     text-align: center;
-    margin-top: 15px;
-    text-decoration: underline;
+    margin-top: 20px;
+    font-size: 16px;
+  }
+
+  .signup-link button {
+    background: none;
+    border: none;
     color: #007bff;
-    text-decoration: none;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 16px;
+    transition: color 0.3s;
+  }
+
+  .signup-link button:hover {
+    color: #0056b3;
+  }
+
+  .error-message {
+    color: #dc3545;
+    font-size: 14px;
+    margin-top: 5px;
   }
 </style>
