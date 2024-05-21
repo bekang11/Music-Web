@@ -9,6 +9,7 @@
   let password = '';
   let userInput = '';
   let captchaCode = writable('');
+  
 
   const generateCaptcha = () => {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -42,6 +43,7 @@
         const token = data.accessToken;
         console.log('Received token:' , token);
         localStorage.setItem('accessToken', token);
+        setAccessToken(token);
         window.location.href = '/music';
         alert('Sign-in successful!');
       } else {

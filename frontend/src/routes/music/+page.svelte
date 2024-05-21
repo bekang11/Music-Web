@@ -1,19 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { accessToken } from '$lib/stores/accessToken';
+  import {accessToken} from '$lib/stores/accessToken';
   import { musicData, type MusicTrack } from '$lib/stores/musicData';
-  import { writable } from 'svelte/store';
-
+  import { writable, get } from 'svelte/store';
   let newTitle = '';
   let newArtist = '';
-  let updateTitle = '';
-  let updateArtist = '';
-  let editingTrack: MusicTrack | null = null;
- 
-
+  let editingTrackId: number | null = null;
+  const updateTitle = writable('');
+  const updateArtist = writable('');
   const isLoading = writable(true);
 
   const logout = () => {
+    accessToken.set(null);
     window.location.href = '/signin';
   };
 
@@ -26,16 +24,20 @@
       };
       try {
         const response = await fetch(`http://localhost:3000/music`, {
-         method: 'POST',
-         mode: 'cors',
-         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${$accessToken}`,          
-         },
-         body: JSON.stringify(newTrack),
+          method: 'POST',
+          mode: 'cors',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${get(accessToken)}`,
+          },
+          body: JSON.stringify(newTrack),
         });
         if (response.ok) {
-         alert('Music add successfully');
+          const data = await response.json();
+          musicData.update((tracks) => [...tracks, data]);
+          newTitle = '';
+          newArtist = '';
+          alert('Music added successfully');
         } else {
           throw new Error('Failed to add Music Track');
         }
@@ -44,84 +46,88 @@
         alert('Failed to add Music Track. Please try again');
       }
     } else {
-      alert('Please enter both title and aritist');
+      alert('Please enter both title and artist');
     }
   };
 
   const deleteMusicTrack = async (id: number) => {
-    try{
+    try {
       if (typeof id !== 'undefined') {
-      const response = await fetch(`http://localhost:3000/music/${id}`, {
-        method: 'DELETE',
-        mode: 'cors',
-        headers: {
-          Authorization: `Bearer ${$accessToken}`,
-        },
-      });
-      if (response.ok) {
-        let $musicData: MusicTrack[] = []
-        $musicData = $musicData.filter((track) => track.id !== id);
-      } else {
-        throw new Error('Failed to delete music track');
-            }
-      } 
+        const response = await fetch(`http://localhost:3000/music/${id}`, {
+          method: 'DELETE',
+          mode: 'cors',
+          headers: {
+            Authorization: `Bearer ${get(accessToken)}`,
+          },
+        });
+        if (response.ok) {
+          musicData.update((tracks) => tracks.filter((track) => track.id !== id));
+        } else {
+          throw new Error('Failed to delete music track');
+        }
+      }
     } catch (error) {
       console.log('Error deleting music track:', error);
     }
   };
 
   const updateMusicTrack = async (track: MusicTrack) => {
-      try {
-        if (updateTitle.trim() !== '') {
+    const title = get(updateTitle).trim();
+    const artist = get(updateArtist).trim();
+    try {
+      let titleUpdated = false;
+      let artistUpdated = false;
+      if (title !== '') {
         const response = await fetch(`http://localhost:3000/music/${track.id}/title`, {
           method: 'PATCH',
           mode: 'cors',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${$accessToken}`,
+            Authorization: `Bearer ${get(accessToken)}`,
           },
-          body: JSON.stringify({ title: updateTitle.trim() }),
+          body: JSON.stringify({ title }),
         });
         if (!response.ok) {
-          throw new Error('Failde to update music track title');
+          throw new Error('Failed to update music track title');
         }
-      } 
-      if (updateArtist.trim() !== '') {
+        titleUpdated = true;
+      }
+
+      if (artist !== '') {
         const response = await fetch(`http://localhost:3000/music/${track.id}/artist`, {
           method: 'PATCH',
           mode: 'cors',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${$accessToken}`,
+            Authorization: `Bearer ${get(accessToken)}`,
           },
-          body: JSON.stringify({ artist: updateArtist.trim() }),
+          body: JSON.stringify({ artist }),
         });
         if (!response.ok) {
-          throw new Error('Failde to update music track artist');
+          throw new Error('Failed to update music track artist');
         }
+        artistUpdated = true;
       }
-      let $musicData: MusicTrack[] = []
-      $musicData = $musicData?.map((t) => {
-        if (t.id === track.id) {
-          return {
-            ...t,
-            title: updateTitle.trim() !== '' ? updateTitle.trim() : t.title,
-            artist: updateArtist.trim() !== '' ? updateArtist.trim() : t.artist,
-          };
-        }
-        return t;
-      });
+
+      if (titleUpdated || artistUpdated) {
+        musicData.update((tracks) =>
+          tracks.map((t) =>
+            t.id === track.id ? { ...t, title: titleUpdated ? title : t.title, artist: artistUpdated ? artist : t.artist } : t
+          )
+        );
+        editingTrackId = null;
+      }
     } catch (error) {
-      console.error('Error updating music track', error)
+      console.error('Error updating music track', error);
     }
-  }
+  };
 
   onMount(() => {
-     accessToken.subscribe(token => {
-      console.log('AccessToken Update:', token)
+    accessToken.subscribe((token) => {
+      console.log('AccessToken Update:', token);
       if (token !== null) {
         fetchMusicData(token);
-      } 
+      }
     });
   });
 
@@ -132,13 +138,13 @@
         method: 'GET',
         mode: 'cors',
         headers: {
-          Authorization: `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Music data request successful')
+        console.log('Music data request successful');
         musicData.set(data);
       } else {
         throw new Error('Failed to fetch music data');
@@ -150,7 +156,6 @@
       isLoading.set(false);
     }
   }
-  
 </script>
 
 <div class="logout-container">
@@ -163,28 +168,29 @@
   <button on:click={addMusicTrack} class="form-button">Add Music</button>
 </div>
 
-{#if $musicData === null}
+{#if $isLoading}
   <p>Loading music data...</p>
 {:else}
-  {#each $musicData as track}
+  {#each $musicData as track (track.id)}
     <div class="music-track">
       <div class="music-info">
         <div class="music-title">{track.title}</div>
         <div class="music-artist">by {track.artist}</div>
       </div>
-      {#if editingTrack === track}
-      <div class="music-actions">
-        <input type="text" bind:value={updateTitle} placeholder="Update Title" class="form-input" />
-        <input type="text" bind:value={updateArtist} placeholder="Update Artist" class="form-input" />
-        <button on:click={() => updateMusicTrack(track)} class="action-button">Update</button>
-      </div>
+      {#if editingTrackId === track.id}
+        <div class="music-actions">
+          <input type="text" bind:value={$updateTitle} placeholder="Update Title" class="form-input" />
+          <input type="text" bind:value={$updateArtist} placeholder="Update Artist" class="form-input" />
+          <button on:click={() => updateMusicTrack(track)} class="action-button">Update</button>
+        </div>
       {:else}
-      <button on:click={() => {editingTrack = track;}} class="action-button">Edit</button>
+        <button on:click={() => { editingTrackId = track.id; updateTitle.set(track.title); updateArtist.set(track.artist); }} class="action-button">Edit</button>
         <button on:click={() => deleteMusicTrack(track.id)} class="action-button">Delete</button>
-        {/if}
+      {/if}
     </div>
   {/each}
 {/if}
+
 
 <style>
   .logout-container {

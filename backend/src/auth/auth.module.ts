@@ -8,6 +8,7 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { CaptchaService } from './capcha/captchaservice';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Module({
   imports: [
@@ -15,12 +16,18 @@ import { CaptchaService } from './capcha/captchaservice';
     JwtModule.register({
       secret: 'topSecret51',
       signOptions: {
-        expiresIn: '10h',
+        expiresIn: '30h',
       },
     }),
     TypeOrmModule.forFeature([User]),
   ],
-  providers: [AuthService, UsersRepository, JwtStrategy, CaptchaService],
+  providers: [
+    AuthService,
+    UsersRepository,
+    JwtStrategy,
+    CaptchaService,
+    JwtAuthGuard,
+  ],
   controllers: [AuthController],
   exports: [JwtStrategy, PassportModule],
 })

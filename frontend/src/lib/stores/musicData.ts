@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 
-export interface MusicTrack  {
+export interface MusicTrack   {
     id?: number;
     title: string;
     artist: string;
@@ -9,4 +9,4 @@ export interface MusicTrack  {
     updateArtist: string;
 };
 
-export const musicData = writable<MusicTrack[] | null>(null);
+export const musicData = writable<MusicTrack[]>([]);
