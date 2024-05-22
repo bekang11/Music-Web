@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import { setAccessToken } from '$lib/stores/accessToken';
+  import { goto } from '$app/navigation';
 
 
   let username = '';
@@ -41,10 +42,10 @@
       if (response.ok) {
         const data = await response.json();
         const token = data.accessToken;
-        console.log('Received token:' , token);
+        console.log('Received token:', token);
         localStorage.setItem('accessToken', token);
         setAccessToken(token);
-        window.location.href = '/music';
+        goto('/music');
         alert('Sign-in successful!');
       } else {
         throw new Error('Sign-in failed');

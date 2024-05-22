@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import {accessToken} from '$lib/stores/accessToken';
+  import { accessToken } from '$lib/stores/accessToken';
   import { musicData, type MusicTrack } from '$lib/stores/musicData';
   import { writable, get } from 'svelte/store';
+  import { goto } from '$app/navigation';
+
   let newTitle = '';
   let newArtist = '';
   let editingTrackId: number | null = null;
@@ -123,13 +125,15 @@
   };
 
   onMount(() => {
-    accessToken.subscribe((token) => {
-      console.log('AccessToken Update:', token);
-      if (token !== null) {
-        fetchMusicData(token);
-      }
-    });
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      goto('/signin');
+    } else {
+      accessToken.set(token);
+      fetchMusicData(token);
+    }
   });
+
 
   async function fetchMusicData(token: string) {
     isLoading.set(true);
