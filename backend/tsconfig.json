@@ -19,5 +19,9 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false
-  }
+  },
+  "include": [
+    "src",
+    "types/express.d.ts"
+  ]
 }

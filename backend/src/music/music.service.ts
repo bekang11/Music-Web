@@ -5,6 +5,7 @@ import { Music } from 'src/entities/music.entity';
 import { CreateMusicDto } from './dto/create-music.dto';
 import { GetMusicFilterDto } from './dto/get-music-filter.dto';
 import { User } from 'src/entities/user.entity';
+import { PaginatedMusicResultDto } from './dto/paginated-music-result.dto';
 
 @Injectable()
 export class MusicService {
@@ -30,8 +31,19 @@ export class MusicService {
       throw new NotFoundException(`Music with ID "${id}" not found`);
     }
   }
-  getMusic(filterDto: GetMusicFilterDto, user: User): Promise<Music[]> {
-    return this.musicRepository.getMusic(filterDto, user);
+  async getMusic(
+    filterDto: GetMusicFilterDto,
+    user: User,
+  ): Promise<PaginatedMusicResultDto> {
+    const filter = {
+      page: 1,
+      skip: 0,
+      limit: 10,
+      search: '',
+      ...filterDto,
+    };
+
+    return this.musicRepository.getMusic(filter, user);
   }
   async updateMusicTitle(
     id: string,

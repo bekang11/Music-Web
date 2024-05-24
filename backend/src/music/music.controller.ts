@@ -9,6 +9,7 @@ import {
   UseGuards,
   Query,
   Patch,
+  Req,
 } from '@nestjs/common';
 import { MusicService } from './music.service';
 import { Music } from 'src/entities/music.entity';
@@ -19,20 +20,16 @@ import { GetUser } from 'src/user/get-user.decorator';
 import { GetMusicFilterDto } from './dto/get-music-filter.dto';
 import { UpdateMusicArtistDto } from './dto/update-music-artist.dto';
 import { UpdateMusicTitleDto } from './dto/update-music-title.dto';
+import { Request } from 'express';
 @Controller('music')
-@UseGuards(AuthGuard())
+@UseGuards(AuthGuard('jwt'))
 export class MusicController {
   private logger = new Logger('MusicController');
 
   constructor(private musicService: MusicService) {}
   @Get()
-  getMusic(
-    @Query() filterDto: GetMusicFilterDto,
-    @GetUser() user: User,
-  ): Promise<Music[]> {
-    this.logger.verbose(
-      `User "${user.username}" retrieving all music. Filters: ${JSON.stringify(filterDto)}`,
-    );
+  getMusic(@Query() filterDto: GetMusicFilterDto, @Req() req: Request) {
+    const user = req.user as User;
     return this.musicService.getMusic(filterDto, user);
   }
 

@@ -1,16 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { accessToken } from '$lib/stores/accessToken';
-  import { musicData, type MusicTrack } from '$lib/stores/musicData';
+  import { musicData, type MusicTrack} from '$lib/stores/musicData';
   import { writable, get } from 'svelte/store';
   import { goto } from '$app/navigation';
+  import { currentPage, totalTracks, tracksPerPage} from '$lib/stores/pagination';
 
   let newTitle = '';
   let newArtist = '';
-  let editingTrackId: number | null = null;
+  let editingTrackId: string | null = null;
   const updateTitle = writable('');
   const updateArtist = writable('');
   const isLoading = writable(true);
+  let searchQuery = writable('');
+  
 
   const logout = () => {
     accessToken.set(null);
@@ -52,26 +55,29 @@
     }
   };
 
-  const deleteMusicTrack = async (id: number) => {
-    try {
-      if (typeof id !== 'undefined') {
-        const response = await fetch(`http://localhost:3000/music/${id}`, {
-          method: 'DELETE',
-          mode: 'cors',
-          headers: {
-            Authorization: `Bearer ${get(accessToken)}`,
-          },
-        });
-        if (response.ok) {
-          musicData.update((tracks) => tracks.filter((track) => track.id !== id));
-        } else {
-          throw new Error('Failed to delete music track');
-        }
+  const deleteMusicTrack = async (id: string) => {
+  try {
+    if (id !== undefined) { 
+      const response = await fetch(`http://localhost:3000/music/${id}`, {
+        method: 'DELETE',
+        mode: 'cors',
+        headers: {
+          Authorization: `Bearer ${get(accessToken)}`,
+        },
+      });
+      if (response.ok) {
+        musicData.update((tracks) => tracks.filter((track) => track.id !== id));
+      } else {
+        throw new Error('Failed to delete music track');
       }
-    } catch (error) {
-      console.log('Error deleting music track:', error);
+    } else {
+      throw new Error('Invalid music track ID');
     }
-  };
+  } catch (error) {
+    console.log('Error deleting music track:', error);
+  }
+};
+
 
   const updateMusicTrack = async (track: MusicTrack) => {
     const title = get(updateTitle).trim();
@@ -124,42 +130,54 @@
     }
   };
 
+  async function fetchMusicData(page = 1, query = '') {
+    isLoading.set(true);
+    try {
+      const response = await fetch(`http://localhost:3000/music?page=${page}&limit=${get(tracksPerPage)}&search=${query}`, {
+        method: 'GET',
+        mode: 'cors',
+        headers: {
+          Authorization: `Bearer ${get(accessToken)}`,
+        },
+      });
+
+      if (response.ok) {
+        const { tracks, total } = await response.json();
+        musicData.set(tracks);
+        totalTracks.set(total);
+        currentPage.set(page);
+
+        console.log('Retrieved music tracks:', tracks);
+        console.log('Total tracks:', total);
+        console.log('Current page:', page);
+      } else {
+        throw new Error('Failed to fetch music data');
+      }
+    } catch (error) {
+      console.error('Error fetching music data:', error);
+    } finally {
+      isLoading.set(false);
+    }
+  }
+
+  function handlePagination(page: number) {
+    currentPage.set(page);
+    fetchMusicData(page, get(searchQuery));
+  }
+
+  function handleSearch() {
+    fetchMusicData(1, get(searchQuery));
+  }
+
   onMount(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
       goto('/signin');
     } else {
       accessToken.set(token);
-      fetchMusicData(token);
+      fetchMusicData(get(currentPage), get(searchQuery));
     }
   });
-
-
-  async function fetchMusicData(token: string) {
-    isLoading.set(true);
-    try {
-      const response = await fetch('http://localhost:3000/music', {
-        method: 'GET',
-        mode: 'cors',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Music data request successful');
-        musicData.set(data);
-      } else {
-        throw new Error('Failed to fetch music data');
-      }
-    } catch (error) {
-      const errorMessage = (error as Error).message;
-      console.error('Error fetching music data:', errorMessage);
-    } finally {
-      isLoading.set(false);
-    }
-  }
 </script>
 
 <div class="logout-container">
@@ -170,6 +188,11 @@
   <input type="text" bind:value={newTitle} placeholder="Title" class="form-input" />
   <input type="text" bind:value={newArtist} placeholder="Artist" class="form-input" />
   <button on:click={addMusicTrack} class="form-button">Add Music</button>
+</div>
+
+<div class="search-container">
+  <input type="text" bind:value={$searchQuery} placeholder="Search by title or artist" class="form-input" />
+  <button on:click={handleSearch} class="form-button">Search</button>
 </div>
 
 {#if $isLoading}
@@ -194,9 +217,66 @@
     </div>
   {/each}
 {/if}
+<div class="pagination">
+  <button on:click={() => handlePagination(1)} disabled={$currentPage === 1}>First</button>
+  <button on:click={() => handlePagination($currentPage - 1)} disabled={$currentPage === 1}>Previous</button>
+  {#each Array.from({ length: Math.ceil($totalTracks / tracksPerPage) }, (_, i) => i + 1) as page}
+    {#if Math.abs(page - $currentPage) <= 2 || page === 1 || page === Math.ceil($totalTracks / tracksPerPage)}
+      <button on:click={() => handlePagination(page)} class:active={$currentPage === page}>{page}</button>
+    {:else if page === $currentPage - 3 || page === $currentPage + 3}
+      <span>...</span>
+    {/if}
+  {/each}
+  <button on:click={() => handlePagination($currentPage + 1)} disabled={$currentPage === Math.ceil($totalTracks / tracksPerPage)}>Next</button>
+  <button on:click={() => handlePagination(Math.ceil($totalTracks / tracksPerPage))} disabled={$currentPage === Math.ceil($totalTracks / tracksPerPage)}>Last</button>
+</div>
 
 
 <style>
+
+.search-container {
+    margin-bottom: 20px;
+  }
+
+  .search-container .form-input {
+    margin-right: 10px;
+  }
+
+ .pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+  }
+
+  .pagination button {
+    margin: 0 5px;
+    padding: 5px 10px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  .pagination button:hover {
+    background-color: #0056b3;
+  }
+
+  .pagination button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+
+  .pagination button.active {
+    background-color: #0056b3;
+  }
+
+  .pagination span {
+    margin: 0 5px;
+    padding: 5px 10px;
+  }
+
   .logout-container {
     text-align: center;
     margin-top: 20px;

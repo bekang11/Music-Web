@@ -9,43 +9,59 @@ import { CreateMusicDto } from './dto/create-music.dto';
 import { GetMusicFilterDto } from './dto/get-music-filter.dto';
 import { User } from 'src/entities/user.entity';
 import { MusicStatus } from './music-status.enum';
+import { PaginatedMusicResultDto } from './dto/paginated-music-result.dto';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class MusicRepository extends Repository<Music> {
-  constructor(private dataSource: DataSource) {
+  constructor(
+    @InjectRepository(Music)
+    private readonly musicRepository: Repository<Music>,
+    private dataSource: DataSource,
+  ) {
     super(Music, dataSource.createEntityManager());
   }
   private logger = new Logger('MusicRepository', { timestamp: true });
 
-  async getMusic(filterDto: GetMusicFilterDto, user: User): Promise<Music[]> {
-    const { status, search } = filterDto;
-
+  async getMusic(
+    filterDto: GetMusicFilterDto,
+    user: User,
+  ): Promise<PaginatedMusicResultDto> {
+    const { search, page = 1 } = filterDto;
     const query = this.createQueryBuilder('music');
-    query.where({ user });
 
-    if (status) {
-      query.andWhere('music.status = :status', { status });
-    }
+    query.where('music.userId = :userId', { userId: user.id });
 
     if (search) {
       query.andWhere(
-        '(LOWER(music.title) LIKE LOWER(:search) OR LOWER(music.artist) LIKE LOWER(:search))',
+        '(music.title LIKE :search OR music.artist LIKE :search)',
         { search: `%${search}%` },
       );
     }
+
+    const pageNumber = Number(page);
+    const pageLimit = 5;
+
+    if (isNaN(pageNumber)) {
+      throw new InternalServerErrorException('Invalid pagination parameters');
+    }
+
     try {
-      const musics = await query.getMany();
-      return musics;
+      const [tracks, total] = await query
+        .skip((pageNumber - 1) * pageLimit)
+        .take(pageLimit)
+        .getManyAndCount();
+
+      return { tracks, total };
     } catch (error) {
       this.logger.error(
-        `Failed to get musics for user "${
-          user.username
-        }". Filters: ${JSON.stringify(filterDto)}`,
+        `Failed to get musics for user "${user.username}". Filters: ${JSON.stringify(filterDto)}`,
         error.stack,
       );
       throw new InternalServerErrorException();
     }
   }
+
   async createMusic(
     createMusicDto: CreateMusicDto,
     user: User,
