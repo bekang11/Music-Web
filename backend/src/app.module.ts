@@ -17,7 +17,7 @@ import { HttpExceptionFilter } from './http-exception.filter';
       database: 'Music',
       entities: [Music],
       autoLoadEntities: true,
-      synchronize: false,
+      synchronize: true,
     }),
   ],
   providers: [

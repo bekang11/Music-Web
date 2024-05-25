@@ -1,19 +1,22 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { accessToken } from '$lib/stores/accessToken';
-  import { musicData, type MusicTrack} from '$lib/stores/musicData';
+  import { musicData, type MusicTrack } from '$lib/stores/musicData';
   import { writable, get } from 'svelte/store';
   import { goto } from '$app/navigation';
-  import { currentPage, totalTracks, tracksPerPage} from '$lib/stores/pagination';
+  import { currentPage, totalTracks, tracksPerPage } from '$lib/stores/pagination';
 
   let newTitle = '';
   let newArtist = '';
+  let currentTrackIndex = -1;
+  const filePath = writable('');
+  let audioElements: HTMLAudioElement[] = [];
+  let isPlaying = false;
   let editingTrackId: string | null = null;
   const updateTitle = writable('');
   const updateArtist = writable('');
   const isLoading = writable(true);
   let searchQuery = writable('');
-  
 
   const logout = () => {
     accessToken.set(null);
@@ -56,28 +59,27 @@
   };
 
   const deleteMusicTrack = async (id: string) => {
-  try {
-    if (id !== undefined) { 
-      const response = await fetch(`http://localhost:3000/music/${id}`, {
-        method: 'DELETE',
-        mode: 'cors',
-        headers: {
-          Authorization: `Bearer ${get(accessToken)}`,
-        },
-      });
-      if (response.ok) {
-        musicData.update((tracks) => tracks.filter((track) => track.id !== id));
+    try {
+      if (id !== undefined) {
+        const response = await fetch(`http://localhost:3000/music/${id}`, {
+          method: 'DELETE',
+          mode: 'cors',
+          headers: {
+            Authorization: `Bearer ${get(accessToken)}`,
+          },
+        });
+        if (response.ok) {
+          musicData.update((tracks) => tracks.filter((track) => track.id !== id));
+        } else {
+          throw new Error('Failed to delete music track');
+        }
       } else {
-        throw new Error('Failed to delete music track');
+        throw new Error('Invalid music track ID');
       }
-    } else {
-      throw new Error('Invalid music track ID');
+    } catch (error) {
+      console.log('Error deleting music track:', error);
     }
-  } catch (error) {
-    console.log('Error deleting music track:', error);
-  }
-};
-
+  };
 
   const updateMusicTrack = async (track: MusicTrack) => {
     const title = get(updateTitle).trim();
@@ -120,7 +122,9 @@
       if (titleUpdated || artistUpdated) {
         musicData.update((tracks) =>
           tracks.map((t) =>
-            t.id === track.id ? { ...t, title: titleUpdated ? title : t.title, artist: artistUpdated ? artist : t.artist } : t
+            t.id === track.id
+              ? { ...t, title: titleUpdated ? title : t.title, artist: artistUpdated ? artist : t.artist }
+              : t
           )
         );
         editingTrackId = null;
@@ -178,6 +182,52 @@
       fetchMusicData(get(currentPage), get(searchQuery));
     }
   });
+
+  const fetchFilePath = async () => {
+    try {
+      isLoading.set(true);
+      const response = await fetch('http://localhost:3000/getFilePath', {
+        headers: {
+          Authorization: `Bearer ${get(accessToken)}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        filePath.set(data.filePath);
+      } else {
+        throw new Error('Failed to fetch file path');
+      }
+    } catch (error) {
+      console.error('Error fetching file path:', error);
+    } finally {
+      isLoading.set(false);
+    }
+  };
+
+  onMount(() => {
+    fetchFilePath();
+  });
+
+  const bindAudioElement = (index: number) => {
+    return (el: HTMLAudioElement) => {
+      audioElements[index] = el;
+    };
+  };
+
+  const togglePlayback = (index: number) => {
+    if (currentTrackIndex !== -1 && currentTrackIndex !== index) {
+      audioElements[currentTrackIndex].pause();
+      audioElements[currentTrackIndex].currentTime = 0;
+    }
+    if (currentTrackIndex === index && isPlaying) {
+      audioElements[index].pause();
+    } else {
+      audioElements[index].play();
+    }
+
+    isPlaying = !isPlaying;
+    currentTrackIndex = index;
+  };
 </script>
 
 <div class="logout-container">
@@ -196,45 +246,52 @@
 </div>
 
 {#if $isLoading}
-  <p>Loading music data...</p>
+<p>Loading music data...</p>
 {:else}
-  {#each $musicData as track (track.id)}
+  {#each $musicData as track, index (track.id)}
     <div class="music-track">
       <div class="music-info">
         <div class="music-title">{track.title}</div>
         <div class="music-artist">by {track.artist}</div>
       </div>
+      <audio bind:this={audioElements[index]} controls>
+        <source src={track.filePath} type="audio/mpeg">
+        Your browser does not support the audio element.
+      </audio>
+      <button on:click={() => togglePlayback(index)}>
+        {isPlaying && currentTrackIndex === index ? 'Pause' : 'Play'}
+      </button>
       {#if editingTrackId === track.id}
-        <div class="music-actions">
-          <input type="text" bind:value={$updateTitle} placeholder="Update Title" class="form-input" />
-          <input type="text" bind:value={$updateArtist} placeholder="Update Artist" class="form-input" />
-          <button on:click={() => updateMusicTrack(track)} class="action-button">Update</button>
-        </div>
-      {:else}
-        <button on:click={() => { editingTrackId = track.id; updateTitle.set(track.title); updateArtist.set(track.artist); }} class="action-button">Edit</button>
-        <button on:click={() => deleteMusicTrack(track.id)} class="action-button">Delete</button>
-      {/if}
-    </div>
-  {/each}
+      <div class="music-actions">
+        <input type="text" bind:value={$updateTitle} placeholder="Update Title" class="form-input" />
+        <input type="text" bind:value={$updateArtist} placeholder="Update Artist" class="form-input" />
+        <button on:click={() => updateMusicTrack(track)} class="action-button">Update</button>
+      </div>
+    {:else}
+      <button on:click={() => { editingTrackId = track.id; updateTitle.set(track.title); updateArtist.set(track.artist); }} class="action-button">Edit</button>
+      <button on:click={() => deleteMusicTrack(track.id)} class="action-button">Delete</button>
+    {/if}
+  </div>
+{/each}
 {/if}
+
+
 <div class="pagination">
   <button on:click={() => handlePagination(1)} disabled={$currentPage === 1}>First</button>
   <button on:click={() => handlePagination($currentPage - 1)} disabled={$currentPage === 1}>Previous</button>
-  {#each Array.from({ length: Math.ceil($totalTracks / tracksPerPage) }, (_, i) => i + 1) as page}
-    {#if Math.abs(page - $currentPage) <= 2 || page === 1 || page === Math.ceil($totalTracks / tracksPerPage)}
+  {#each Array.from({ length: Math.ceil($totalTracks / get(tracksPerPage)) }, (_, i) => i + 1) as page}
+    {#if Math.abs(page - $currentPage) <= 2 || page === 1 || page === Math.ceil($totalTracks / get(tracksPerPage))}
       <button on:click={() => handlePagination(page)} class:active={$currentPage === page}>{page}</button>
     {:else if page === $currentPage - 3 || page === $currentPage + 3}
       <span>...</span>
     {/if}
   {/each}
-  <button on:click={() => handlePagination($currentPage + 1)} disabled={$currentPage === Math.ceil($totalTracks / tracksPerPage)}>Next</button>
-  <button on:click={() => handlePagination(Math.ceil($totalTracks / tracksPerPage))} disabled={$currentPage === Math.ceil($totalTracks / tracksPerPage)}>Last</button>
+  <button on:click={() => handlePagination($currentPage + 1)} disabled={$currentPage === Math.ceil($totalTracks / get(tracksPerPage))}>Next</button>
+  <button on:click={() => handlePagination(Math.ceil($totalTracks / get(tracksPerPage)))} disabled={$currentPage === Math.ceil($totalTracks / get(tracksPerPage))}>Last</button>
 </div>
 
-
 <style>
-
-.search-container {
+  .search-container {
     margin-bottom: 20px;
   }
 
@@ -242,7 +299,7 @@
     margin-right: 10px;
   }
 
- .pagination {
+  .pagination {
     display: flex;
     justify-content: center;
     margin-top: 20px;
@@ -298,7 +355,7 @@
     color: #fff;
   }
 
-   .form-container {
+  .form-container {
     margin-bottom: 20px;
   }
 
@@ -325,7 +382,6 @@
     background-color: #0056b3;
   }
 
-  /* Music track styles */
   .music-track {
     margin-bottom: 20px;
     padding: 15px;

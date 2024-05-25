@@ -17,6 +17,9 @@ export class Music {
   @Column()
   status: MusicStatus;
 
+  @Column({ nullable: true })
+  filePath: string;
+
   @ManyToOne((_type) => User, (user) => user.musics, { eager: false })
   @Exclude({ toPlainOnly: true })
   user: User;

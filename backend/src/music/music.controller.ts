@@ -10,6 +10,8 @@ import {
   Query,
   Patch,
   Req,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { MusicService } from './music.service';
 import { Music } from 'src/entities/music.entity';
@@ -21,6 +23,8 @@ import { GetMusicFilterDto } from './dto/get-music-filter.dto';
 import { UpdateMusicArtistDto } from './dto/update-music-artist.dto';
 import { UpdateMusicTitleDto } from './dto/update-music-title.dto';
 import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+
 @Controller('music')
 @UseGuards(AuthGuard('jwt'))
 export class MusicController {
@@ -44,6 +48,17 @@ export class MusicController {
     @GetUser() user: User,
   ): Promise<void> {
     return this.musicService.deleteMusicById(id, user);
+  }
+
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadMusic(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req,
+    @Param('id') musicId: string,
+  ): Promise<Music> {
+    const user: User = req.user;
+    return this.musicService.uploadMusic(file, user, musicId);
   }
 
   @Post()
