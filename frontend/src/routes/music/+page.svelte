@@ -26,6 +26,7 @@
   const addMusicTrack = async () => {
     if (newTitle.trim() !== '' && newArtist.trim() !== '') {
       const newTrack = {
+        id: Date.now().toString(),
         title: newTitle.trim(),
         artist: newArtist.trim(),
         status: 'PLAYING',
@@ -169,6 +170,27 @@
     fetchMusicData(page, get(searchQuery));
   }
 
+  const totalPages = () => Math.ceil(get(totalTracks) / get(tracksPerPage));
+
+const generatePages = () => {
+  const pages = [];
+  const totalPagesCount = totalPages();
+  const currentPageNum = get(currentPage);
+  const maxPagesToShow = 10;
+  let startPage = Math.max(1, currentPageNum - Math.floor(maxPagesToShow / 2));
+  let endPage = Math.min(totalPagesCount, startPage + maxPagesToShow - 1);
+  if (endPage === totalPagesCount) {
+    startPage = Math.max(1, endPage - maxPagesToShow + 1);
+  }
+  if (startPage === 1) {
+    endPage = Math.min(totalPagesCount, startPage + maxPagesToShow - 1);
+  }
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i);
+  }
+  return pages;
+};
+
   function handleSearch() {
     fetchMusicData(1, get(searchQuery));
   }
@@ -279,17 +301,14 @@
 <div class="pagination">
   <button on:click={() => handlePagination(1)} disabled={$currentPage === 1}>First</button>
   <button on:click={() => handlePagination($currentPage - 1)} disabled={$currentPage === 1}>Previous</button>
-  {#each Array.from({ length: Math.ceil($totalTracks / get(tracksPerPage)) }, (_, i) => i + 1) as page}
-    {#if Math.abs(page - $currentPage) <= 2 || page === 1 || page === Math.ceil($totalTracks / get(tracksPerPage))}
+  {#if totalPages() > 1}
+    {#each generatePages() as page}
       <button on:click={() => handlePagination(page)} class:active={$currentPage === page}>{page}</button>
-    {:else if page === $currentPage - 3 || page === $currentPage + 3}
-      <span>...</span>
-    {/if}
-  {/each}
-  <button on:click={() => handlePagination($currentPage + 1)} disabled={$currentPage === Math.ceil($totalTracks / get(tracksPerPage))}>Next</button>
-  <button on:click={() => handlePagination(Math.ceil($totalTracks / get(tracksPerPage)))} disabled={$currentPage === Math.ceil($totalTracks / get(tracksPerPage))}>Last</button>
+    {/each}
+  {/if}
+  <button on:click={() => handlePagination($currentPage + 1)} disabled={$currentPage === totalPages()}>Next</button>
+  <button on:click={() => handlePagination(totalPages())} disabled={$currentPage === totalPages()}>Last</button>
 </div>
-
 <style>
   .search-container {
     margin-bottom: 20px;
@@ -327,11 +346,6 @@
 
   .pagination button.active {
     background-color: #0056b3;
-  }
-
-  .pagination span {
-    margin: 0 5px;
-    padding: 5px 10px;
   }
 
   .logout-container {
