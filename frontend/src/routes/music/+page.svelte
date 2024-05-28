@@ -88,6 +88,10 @@
       await uploadMusicFile(musicTrack.id, file);
       newTitle.set('');
       newArtist.set('');
+      const fileInput = document.querySelector('input[type="file"]');
+      if (fileInput) {
+        fileInput.value = '';
+      }
       selectedFile.set(null);
       fetchMusicData();
       alert('Music added successfully');
@@ -123,6 +127,9 @@
       audioElement.src = audioUrl;
       await audioElement.load();
       if (audioElement.paused) {
+        audioElement.pause();
+        isPlaying = false;
+      } else {
         if (isPlaying && currentTrackIndex !== index && currentTrackIndex !== -1) {
           const currentAudioElement = audioElements[currentTrackIndex];
           if (currentAudioElement) {
@@ -133,10 +140,7 @@
         await audioElement.play();
         isPlaying = true;
         currentTrackIndex = index;
-      } else {
-        audioElement.pause();
-        isPlaying = false;
-      }
+      } 
     } catch (error) {
       console.error('Error fetching and playing music file:', error);
       alert('Failed to fetch and play music file');
