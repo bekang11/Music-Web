@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MusicRepository } from './music.repository';
 import { Music } from 'src/entities/music.entity';
@@ -18,21 +14,26 @@ export class MusicService {
     private musicRepository: MusicRepository,
   ) {}
 
-  async uploadMusic(
-    file: Express.Multer.File,
-    user: User,
+  async findMusicById(id: string): Promise<Music> {
+    return this.musicRepository.findOne({ where: { id } });
+  }
+
+  async associateFileWithMusicTrack(
+    fileBuffer: Buffer,
     musicId: string,
-  ): Promise<any> {
-    try {
-      return this.musicRepository.associateFileWithMusicTrack(
-        file,
-        user,
-        musicId,
-      );
-    } catch (error) {
-      console.error('Failed to upload music:', error);
-      throw new InternalServerErrorException('Failed to upload music');
+    title: string,
+    artist: string,
+  ): Promise<Music> {
+    const music = await this.musicRepository.findOne({
+      where: { id: musicId },
+    });
+    if (!music) {
+      throw new NotFoundException(`Music track with ID "${musicId}" not found`);
     }
+    music.file = fileBuffer;
+    music.title = title;
+    music.artist = artist;
+    return this.musicRepository.save(music);
   }
 
   async getMusicById(id: string, user: User): Promise<Music> {

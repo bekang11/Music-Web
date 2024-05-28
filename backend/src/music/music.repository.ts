@@ -23,31 +23,6 @@ export class MusicRepository extends Repository<Music> {
   }
   private logger = new Logger('MusicRepository', { timestamp: true });
 
-  async associateFileWithMusicTrack(
-    file: Express.Multer.File,
-    user: User,
-    musicId: string,
-  ): Promise<void> {
-    try {
-      const filePath = `/uploads/music/${file.filename}`;
-      const music = await this.musicRepository.findOne({
-        where: { id: musicId, user },
-      });
-
-      if (!music) {
-        throw new Error(
-          `Music track with ID "${musicId}" not found for user "${user.username}"`,
-        );
-      }
-      music.filePath = filePath;
-      await this.musicRepository.save(music);
-    } catch (error) {
-      console.error('Failed to associate file with music track:', error);
-      throw new InternalServerErrorException(
-        'Failed to associate file with music track',
-      );
-    }
-  }
   async getMusic(
     filterDto: GetMusicFilterDto,
     user: User,

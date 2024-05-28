@@ -17,10 +17,10 @@ export class Music {
   @Column()
   status: MusicStatus;
 
-  @Column({ nullable: true })
-  filePath: string;
+  @Column({ type: 'bytea', nullable: true })
+  file: Buffer;
 
-  @ManyToOne((_type) => User, (user) => user.musics, { eager: false })
+  @ManyToOne(() => User, (user) => user.musics, { eager: false })
   @Exclude({ toPlainOnly: true })
   user: User;
 }

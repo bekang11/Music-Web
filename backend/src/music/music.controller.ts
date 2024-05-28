@@ -12,6 +12,10 @@ import {
   Req,
   UseInterceptors,
   UploadedFile,
+  BadRequestException,
+  InternalServerErrorException,
+  NotFoundException,
+  Res,
 } from '@nestjs/common';
 import { MusicService } from './music.service';
 import { Music } from 'src/entities/music.entity';
@@ -22,8 +26,9 @@ import { GetUser } from 'src/user/get-user.decorator';
 import { GetMusicFilterDto } from './dto/get-music-filter.dto';
 import { UpdateMusicArtistDto } from './dto/update-music-artist.dto';
 import { UpdateMusicTitleDto } from './dto/update-music-title.dto';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadMusicDto } from './dto/upload-music.dto';
 
 @Controller('music')
 @UseGuards(AuthGuard('jwt'))
@@ -50,15 +55,49 @@ export class MusicController {
     return this.musicService.deleteMusicById(id, user);
   }
 
-  @Post('upload')
+  @Get('/:id/file')
+  async getMusicFile(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const music = await this.musicService.findMusicById(id);
+
+    if (!music || !music.file) {
+      throw new NotFoundException(`Music file with ID "${id}" not found`);
+    }
+
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': music.file.length,
+    });
+
+    res.send(music.file);
+  }
+
+  @Post('/:id/upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadMusic(
     @UploadedFile() file: Express.Multer.File,
-    @Req() req,
     @Param('id') musicId: string,
+    @Body() uploadMusicDto: UploadMusicDto,
   ): Promise<Music> {
-    const user: User = req.user;
-    return this.musicService.uploadMusic(file, user, musicId);
+    const { title, artist } = uploadMusicDto;
+    if (!file || !title || !artist || !musicId) {
+      throw new BadRequestException('Missing required parameters');
+    }
+
+    try {
+      const musicTrack = await this.musicService.associateFileWithMusicTrack(
+        file.buffer, // Pass the file buffer
+        musicId,
+        title,
+        artist,
+      );
+      return musicTrack;
+    } catch (error) {
+      console.error('Error uploading music:', error);
+      throw new InternalServerErrorException('Failed to upload music');
+    }
   }
 
   @Post()
@@ -71,6 +110,7 @@ export class MusicController {
     );
     return this.musicService.createMusic(createMusicDto, user);
   }
+
   @Patch('/:id/title')
   updateMusicTitle(
     @Param('id') id: string,
@@ -80,6 +120,7 @@ export class MusicController {
     const { title } = updateMusicTitleDto;
     return this.musicService.updateMusicTitle(id, title, user);
   }
+
   @Patch('/:id/artist')
   updateMusicArtist(
     @Param('id') id: string,

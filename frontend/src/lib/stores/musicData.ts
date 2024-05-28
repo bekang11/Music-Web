@@ -7,5 +7,6 @@ export interface MusicTrack   {
     status: string; 
     updateTitle: string;
     updateArtist: string;
+    filePath: string;
 };
 export const musicData = writable<MusicTrack[]>([]);

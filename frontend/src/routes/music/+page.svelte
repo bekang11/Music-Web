@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { accessToken } from '$lib/stores/accessToken';
   import { musicData, type MusicTrack } from '$lib/stores/musicData';
   import { writable, get } from 'svelte/store';
   import { goto } from '$app/navigation';
   import { currentPage, totalTracks, tracksPerPage } from '$lib/stores/pagination';
+  import {selectedMusicId} from '$lib/stores/selectedMusicId';
 
   let newTitle = '';
   let newArtist = '';
@@ -17,47 +18,160 @@
   const updateArtist = writable('');
   const isLoading = writable(true);
   let searchQuery = writable('');
+  let selectedFile = writable<File | null>(null);
+  let musicId: string | null = null;
+  const audioSrc = writable<string | null>(null);
+  let audioUrl: string | null = null;
+  let volume = 0.5;
+
+
+  
 
   const logout = () => {
     accessToken.set(null);
     window.location.href = '/signin';
   };
 
+  const createMusicTrack = async () => {
+    const response = await fetch('http://localhost:3000/music', {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${get(accessToken)}`,
+      },
+      body: JSON.stringify({ title: newTitle, artist: newArtist }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create Music Track');
+    }
+
+    return response.json();
+  };
+
+  const uploadMusicFile = async (musicId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', newTitle.trim());
+    formData.append('artist', newArtist.trim());
+
+    const response = await fetch(`http://localhost:3000/music/${musicId}/upload`, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        Authorization: `Bearer ${get(accessToken)}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const responseData = await response.json();
+      throw new Error(responseData.message || 'Failed to upload music file');
+    }
+
+    return response.json();
+  };
+
+
+
   const addMusicTrack = async () => {
-    if (newTitle.trim() !== '' && newArtist.trim() !== '') {
-      const newTrack = {
-        id: Date.now().toString(),
-        title: newTitle.trim(),
-        artist: newArtist.trim(),
-        status: 'PLAYING',
-      };
-      try {
-        const response = await fetch(`http://localhost:3000/music`, {
-          method: 'POST',
-          mode: 'cors',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${get(accessToken)}`,
-          },
-          body: JSON.stringify(newTrack),
-        });
-        if (response.ok) {
-          const data = await response.json();
-          musicData.update((tracks) => [...tracks, data]);
-          newTitle = '';
-          newArtist = '';
-          alert('Music added successfully');
-        } else {
-          throw new Error('Failed to add Music Track');
-        }
-      } catch (error) {
-        console.log('Error adding Music Track', error);
-        alert('Failed to add Music Track. Please try again');
-      }
-    } else {
-      alert('Please enter both title and artist');
+    const file = get(selectedFile);
+
+    if (!file || !newTitle.trim() || !newArtist.trim()) {
+      alert('Please select a music track first and enter both title and artist');
+      return;
+    }
+
+    try {
+      const musicTrack = await createMusicTrack();
+      await uploadMusicFile(musicTrack.id, file);
+      newTitle = '';
+      newArtist = '';
+      selectedFile.set(null);
+      alert('Music added successfully');
+    } catch (error) {
+      console.error('Error adding Music Track:', error);
+      alert('Failed to upload music file');
     }
   };
+
+  const playAndTogglePlayback = async (musicId: string, index: number) => {
+    try {
+      const response = await fetch(`http://localhost:3000/music/${musicId}/file`, {
+        method: 'GET',
+        mode: 'cors',
+        headers: {
+          Authorization: `Bearer ${get(accessToken)}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch music file');
+      }
+
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      audioSrc.set(audioUrl);
+
+      const audioElement = audioElements[index];
+      if (!audioElement) {
+        console.error('Audio element not found for track index:', index);
+        return;
+      }
+      audioElement.src = audioUrl;
+      await audioElement.load();
+      if (audioElement.paused) {
+        if (isPlaying && currentTrackIndex !== index && currentTrackIndex !== -1) {
+          const currentAudioElement = audioElements[currentTrackIndex];
+          if (currentAudioElement) {
+            currentAudioElement.pause();
+          }
+        }
+
+        await audioElement.play();
+        isPlaying = true;
+        currentTrackIndex = index;
+      } else {
+        audioElement.pause();
+        isPlaying = false;
+      }
+    } catch (error) {
+      console.error('Error fetching and playing music file:', error);
+      alert('Failed to fetch and play music file');
+    }
+  };
+
+const adjustVolume = (change: number) => {
+    volume += change;
+    if (volume > 1) {
+      volume = 1;
+    } else if (volume < 0) {
+      volume = 0;
+    }
+    // Set the volume of all audio elements
+    audioElements.forEach(audio => {
+      if (audio) {
+        audio.volume = volume;
+      }
+    });
+  };
+
+
+  onDestroy(() => {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+  });
+
+  const handleFileInput = (event: Event) => {
+    const input = event.target as HTMLInputElement;
+    if (input && input.files && input.files.length > 0) {
+      const file = input.files[0];
+      selectedFile.set(file);
+    }
+  };
+
 
   const deleteMusicTrack = async (id: string) => {
     try {
@@ -236,20 +350,6 @@ const generatePages = () => {
     };
   };
 
-  const togglePlayback = (index: number) => {
-    if (currentTrackIndex !== -1 && currentTrackIndex !== index) {
-      audioElements[currentTrackIndex].pause();
-      audioElements[currentTrackIndex].currentTime = 0;
-    }
-    if (currentTrackIndex === index && isPlaying) {
-      audioElements[index].pause();
-    } else {
-      audioElements[index].play();
-    }
-
-    isPlaying = !isPlaying;
-    currentTrackIndex = index;
-  };
 </script>
 
 <div class="logout-container">
@@ -259,6 +359,7 @@ const generatePages = () => {
 <div class="form-container">
   <input type="text" bind:value={newTitle} placeholder="Title" class="form-input" />
   <input type="text" bind:value={newArtist} placeholder="Artist" class="form-input" />
+  <input type="file" accept=".mp3,.mp4" on:change={handleFileInput} class="form-input" />
   <button on:click={addMusicTrack} class="form-button">Add Music</button>
 </div>
 
@@ -270,19 +371,29 @@ const generatePages = () => {
 {#if $isLoading}
 <p>Loading music data...</p>
 {:else}
+  <!-- Iterate over each music track -->
   {#each $musicData as track, index (track.id)}
     <div class="music-track">
       <div class="music-info">
         <div class="music-title">{track.title}</div>
         <div class="music-artist">by {track.artist}</div>
       </div>
-      <audio bind:this={audioElements[index]} controls>
-        <source src={track.filePath} type="audio/mpeg">
-        Your browser does not support the audio element.
-      </audio>
-      <button on:click={() => togglePlayback(index)}>
-        {isPlaying && currentTrackIndex === index ? 'Pause' : 'Play'}
-      </button>
+      <div class="audio-container">
+        <link rel="stylesheet" href="/node_modules/@fortawesome/fontawesome-free/css/all.min.css">
+        <button class="play-pause-button" on:click={() => playAndTogglePlayback(track.id, index)}>
+            {#if isPlaying && currentTrackIndex === index}
+                <i class="fas fa-pause"></i>
+            {:else}
+                <i class="fas fa-play"></i>
+            {/if}
+        </button>
+        <audio controls bind:this={audioElements[index]} on:click={() => playAndTogglePlayback(track.id, index)}>
+            <source src={track.filePath} type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+        <button class="volume-button" on:click={() => adjustVolume(-0.1)}>-</button>
+        <button class="volume-button" on:click={() => adjustVolume(0.1)}>+</button>
+    </div>    
       {#if editingTrackId === track.id}
       <div class="music-actions">
         <input type="text" bind:value={$updateTitle} placeholder="Update Title" class="form-input" />
@@ -297,19 +408,61 @@ const generatePages = () => {
 {/each}
 {/if}
 
-
+<!-- Pagination section -->
 <div class="pagination">
   <button on:click={() => handlePagination(1)} disabled={$currentPage === 1}>First</button>
   <button on:click={() => handlePagination($currentPage - 1)} disabled={$currentPage === 1}>Previous</button>
-  {#if totalPages() > 1}
-    {#each generatePages() as page}
+  <!-- Iterate over pagination buttons -->
+  {#each Array.from({ length: Math.ceil($totalTracks / get(tracksPerPage)) }, (_, i) => i + 1) as page}
+    {#if Math.abs(page - $currentPage) <= 2 || page === 1 || page === Math.ceil($totalTracks / get(tracksPerPage))}
       <button on:click={() => handlePagination(page)} class:active={$currentPage === page}>{page}</button>
-    {/each}
-  {/if}
-  <button on:click={() => handlePagination($currentPage + 1)} disabled={$currentPage === totalPages()}>Next</button>
-  <button on:click={() => handlePagination(totalPages())} disabled={$currentPage === totalPages()}>Last</button>
+    {:else if page === $currentPage - 3 || page === $currentPage + 3}
+      <span>...</span>
+    {/if}
+  {/each}
+  <button on:click={() => handlePagination($currentPage + 1)} disabled={$currentPage === Math.ceil($totalTracks / get(tracksPerPage))}>Next</button>
+  <button on:click={() => handlePagination(Math.ceil($totalTracks / get(tracksPerPage)))} disabled={$currentPage === Math.ceil($totalTracks / get(tracksPerPage))}>Last</button>
 </div>
 <style>
+
+.play-pause-button {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 24px;
+    margin-right: 10px;
+    color: #007bff;
+    transition: color 0.3s;
+  }
+
+  .play-pause-button:hover {
+    color: #0056b3;
+  }
+
+.audio-container {
+    display: flex;
+    align-items: center;
+  }
+
+  .volume-button {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 8px;
+    margin: 0 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  .volume-button:hover {
+    background-color: #0056b3;
+  } 
+
+.music-track {
+  position: relative;
+}
+
   .search-container {
     margin-bottom: 20px;
   }
