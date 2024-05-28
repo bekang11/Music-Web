@@ -7,8 +7,8 @@
   import { currentPage, totalTracks, tracksPerPage } from '$lib/stores/pagination';
   import {selectedMusicId} from '$lib/stores/selectedMusicId';
 
-  let newTitle = '';
-  let newArtist = '';
+  let newTitle = writable('');
+  let newArtist = writable('');
   let currentTrackIndex = -1;
   const filePath = writable('');
   let audioElements: HTMLAudioElement[] = [];
@@ -53,8 +53,8 @@
   const uploadMusicFile = async (musicId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('title', newTitle.trim());
-    formData.append('artist', newArtist.trim());
+    formData.append('title', get(newTitle).trim());
+    formData.append('artist', get(newArtist).trim());
 
     const response = await fetch(`http://localhost:3000/music/${musicId}/upload`, {
       method: 'POST',
@@ -78,7 +78,7 @@
   const addMusicTrack = async () => {
     const file = get(selectedFile);
 
-    if (!file || !newTitle.trim() || !newArtist.trim()) {
+    if (!file || !get(newTitle).trim() || !get(newArtist).trim()) {
       alert('Please select a music track first and enter both title and artist');
       return;
     }
@@ -86,9 +86,10 @@
     try {
       const musicTrack = await createMusicTrack();
       await uploadMusicFile(musicTrack.id, file);
-      newTitle = '';
-      newArtist = '';
+      newTitle.set('');
+      newArtist.set('');
       selectedFile.set(null);
+      fetchMusicData();
       alert('Music added successfully');
     } catch (error) {
       console.error('Error adding Music Track:', error);
@@ -357,8 +358,8 @@ const generatePages = () => {
 </div>
 
 <div class="form-container">
-  <input type="text" bind:value={newTitle} placeholder="Title" class="form-input" />
-  <input type="text" bind:value={newArtist} placeholder="Artist" class="form-input" />
+  <input type="text" bind:value={$newTitle} placeholder="Title" class="form-input" />
+  <input type="text" bind:value={$newArtist} placeholder="Artist" class="form-input" />
   <input type="file" accept=".mp3,.mp4" on:change={handleFileInput} class="form-input" />
   <button on:click={addMusicTrack} class="form-button">Add Music</button>
 </div>
